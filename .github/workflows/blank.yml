@@ -16,7 +16,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
       
-    - name: Script Execution
+    - name: Opening SSHX Session
       run: |
-        curl -sSf https://sshx.io/get | sh -s run
+        curl -sSf https://sshx.io/get | sh
+
+    - name: Capture SSHX Url
+      run: |
+        python3 main.py
