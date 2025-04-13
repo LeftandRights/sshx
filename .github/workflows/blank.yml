@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: "0 */6 * * *"
 
+env:
+  API_KEY: ${{ secrets.API_KEY }}
+
 permissions:
   contents: read
 
@@ -21,11 +24,26 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: "3.10"
-      
-    - name: Opening SSHX Session
+
+    - name: Ngrok Installation and Setup
+      run: |
+        curl -o ngrok-tar.tgz https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+        tar -xvzf ngrok-tar.tgz
+
+        ./ngrok config add-authtoken $API_KEY
+        
+    - name: Installing Flask
+      run: |
+        python3 -m pip install flask
+        
+    - name: Downloading SSHX
       run: |
         curl -sSf https://sshx.io/get | sh
 
-    - name: Capture SSHX Url
+    - name: Running Local Server
       run: |
-        python3 main.py
+        python3 main.py &
+
+    - name: Running Ngrok Tunnel
+      run: |
+        ./ngrok http --url=yeti-glorious-redbird.ngrok-free.app 5000
