@@ -1,0 +1,22 @@
+name: SSHX Deployment
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Script Execution
+      run: |
+        curl -sSf https://sshx.io/get | sh -s run
