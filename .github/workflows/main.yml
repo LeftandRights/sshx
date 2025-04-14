@@ -73,11 +73,11 @@ jobs:
         echo "Sleeping for $SLEEP seconds (~$((SLEEP / 60)) minutes)"
         sleep 120
 
-    - name: Save Session State (Artifacts)
-      uses: actions/upload-artifact@v3
-      with:
-        name: session-data
-        path: ${{ github.workspace }}
+    # - name: Save Session State (Artifacts)
+    #   uses: actions/upload-artifact@v3
+    #   with:
+    #     name: session-data
+    #     path: ${{ github.workspace }}
         
     - name: Retrigger Workflow
       env:
