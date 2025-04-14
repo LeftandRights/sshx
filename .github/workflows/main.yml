@@ -45,6 +45,7 @@ jobs:
     - name: Downloading SSHX
       run: |
         curl -sSf https://sshx.io/get | sh
+        sleep 5
 
     - name: Running Local Server
       run: |
@@ -59,9 +60,11 @@ jobs:
         REPO: ${{ github.repository }}
         
       run: |
-        echo "Sleeping 5 hours before re-triggering..."
         
-        sleep 18000
+        SLEEP=$((RANDOM % 1800 + 18000))  # 18000–19799
+        echo "Sleeping for $SLEEP seconds (~$((SLEEP / 60)) minutes)"
+        sleep $SLEEP
+        
         curl -X POST \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer $GIT_API_TOKEN" \
