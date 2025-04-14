@@ -3,7 +3,7 @@ name: SSHX Deployment
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */1 * * *"
 
 env:
   API_KEY: ${{ secrets.API_KEY }}
