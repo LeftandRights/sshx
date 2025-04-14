@@ -8,6 +8,7 @@ on:
 env:
   API_KEY: ${{ secrets.API_KEY }}
   GIT_API_TOKEN: ${{ secrets.GIT_API_TOKEN }}
+  DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
 
 permissions:
   contents: read
