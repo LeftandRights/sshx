@@ -8,6 +8,7 @@ env:
   GH_TOKEN: ${{ secrets.GIT_API_TOKEN }}
   GIT_API_TOKEN: ${{ secrets.GIT_API_TOKEN }}
   DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+  ZIP_PASSWD: ${{ secrets.ZIP_PASSWD }}
 
 permissions:
   contents: read
@@ -60,12 +61,11 @@ jobs:
       run: |
         rm -rf *
 
-    # - name: Restore Previous State (Artifacts)
-    #   uses: actions/download-artifact@v3
-    #   with:
-    #     name: session-data
-        
-    #   continue-on-error: true 
+    - name: Restore Previous State (Artifacts)
+      run: |
+        gh release download 1
+        unzip -P $ZIP_PASSWD workspace.zip
+        rm workspace.zip
       
     - name: Instance keep-alive
       run: |
@@ -74,11 +74,11 @@ jobs:
         echo "Sleeping for $SLEEP seconds (~$((SLEEP / 60)) minutes)"
         sleep $SLEEP
 
-    # - name: Save Session State (Artifacts)
-    #   uses: actions/upload-artifact@v3
-    #   with:
-    #     name: session-data
-    #     path: ${{ github.workspace }}
+    - name: Save Session State (Artifacts)
+      run: |
+        gh release delete 1 -y || true
+        zip --password $ZIP_PASSWD workspace.zip /home/runner/work/sshx/sshx/* --exclude ".*"
+        gh release create 1 workspace.zip
         
     - name: Retrigger Workflow
       env:
