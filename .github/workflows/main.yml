@@ -15,13 +15,12 @@ permissions:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python 3.10
       uses: actions/setup-python@v3
       with:
@@ -31,9 +30,8 @@ jobs:
       run: |
         curl -o ngrok-tar.tgz https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
         tar -xvzf ngrok-tar.tgz
-
         ./ngrok config add-authtoken $API_KEY
-        
+
     - name: Installing Dependencies
       run: |
         python3 -m pip install flask requests
@@ -41,11 +39,11 @@ jobs:
     - name: Sending Webhook
       run: |
         python3 send_webhook.py
-        
+
     - name: Deleting Previous Workflow
       run: |
         python3 workflow-delete.py
-        
+
     - name: Downloading SSHX
       run: |
         curl -sSf https://sshx.io/get | sh
@@ -54,9 +52,20 @@ jobs:
       run: |
         python3 main.py &
 
-    - name: Running Ngrok Tunnel
-      continue-on-error: true
-      
+    - name: Running Ngrok Tunnel in Background
       run: |
-        ./ngrok http --url=yeti-glorious-redbird.ngrok-free.app 5000 || true
+        nohup ./ngrok http --url=yeti-glorious-redbird.ngrok-free.app 5000 > ngrok.log 2>&1 &
 
+    - name: Sleep and Re-trigger Workflow
+      env:
+        REPO: ${{ github.repository }}
+        
+      run: |
+        echo "Sleeping 6 hours before re-triggering..."
+        
+        sleep 60
+        curl -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer $GIT_API_TOKEN" \
+          https://api.github.com/repos/$REPO/actions/workflows/main.yml/dispatches \
+          -d '{"ref":"main"}'
