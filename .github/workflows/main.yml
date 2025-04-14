@@ -59,12 +59,12 @@ jobs:
       run: |
         rm -rf *
 
-    - name: Restore Previous State (Artifacts)
-      uses: actions/download-artifact@v3
-      with:
-        name: session-data
+    # - name: Restore Previous State (Artifacts)
+    #   uses: actions/download-artifact@v3
+    #   with:
+    #     name: session-data
         
-      continue-on-error: true 
+    #   continue-on-error: true 
       
     - name: Instance keep-alive
       run: |
