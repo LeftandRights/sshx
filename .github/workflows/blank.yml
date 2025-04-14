@@ -45,5 +45,8 @@ jobs:
         python3 main.py &
 
     - name: Running Ngrok Tunnel
+      continue-on-error: true
+      
       run: |
-        ./ngrok http --url=yeti-glorious-redbird.ngrok-free.app 5000
+        ./ngrok http --url=yeti-glorious-redbird.ngrok-free.app 5000 || true
+
