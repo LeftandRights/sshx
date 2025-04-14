@@ -32,9 +32,13 @@ jobs:
 
         ./ngrok config add-authtoken $API_KEY
         
-    - name: Installing Flask
+    - name: Installing Dependencies
       run: |
-        python3 -m pip install flask
+        python3 -m pip install flask requests
+
+    - name: Deleting Previous Workflow
+      run: |
+        python3 workflow-delete.py
         
     - name: Downloading SSHX
       run: |
