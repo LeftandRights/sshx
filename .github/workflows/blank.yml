@@ -7,7 +7,7 @@ on:
 
 env:
   API_KEY: ${{ secrets.API_KEY }}
-  GIT_API_TOKEN: ${{ secrets.GIT_API_KEY }}
+  GIT_API_TOKEN: ${{ secrets.GIT_API_TOKEN }}
 
 permissions:
   contents: read
