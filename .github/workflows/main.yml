@@ -63,9 +63,14 @@ jobs:
 
     - name: Restore Previous State (Artifacts)
       run: |
-        gh release download 1
-        unzip -P $ZIP_PASSWD workspace.zip
-        rm workspace.zip
+        if gh release view 1 > /dev/null 2>&1; then
+            echo "🔽 Release v1 found. Downloading..."
+            gh release download 1
+            unzip -P "$ZIP_PASSWD" workspace.zip
+            rm workspace.zip
+        else
+            echo "⚠️ Release v1 does not exist. Skipping download."
+        fi
       
     - name: Instance keep-alive
       run: |
@@ -76,9 +81,23 @@ jobs:
 
     - name: Save Session State (Artifacts)
       run: |
-        gh release delete 1 -y || true
-        zip --password $ZIP_PASSWD workspace.zip /home/runner/work/sshx/sshx/* --exclude ".*"
-        gh release create 1 workspace.zip
+
+        ZIP_OUTPUT=$(zip --password "$ZIP_PASSWD" workspace.zip /home/runner/work/sshx/sshx/* --exclude ".*" 2>&1)
+        ZIP_EXIT=$?
+
+        if [ $ZIP_EXIT -ne 0 ]; then
+            if echo "$ZIP_OUTPUT" | grep -q "zip error: Nothing to do!"; then
+                echo "⚠️ Nothing to zip. Skipping release."
+            else
+                echo "❌ Unexpected zip error:"
+                echo "$ZIP_OUTPUT"
+                exit 1
+            fi
+        else
+            echo "✅ Zip created successfully. Uploading to release..."
+            gh release delete 1 -y || true
+            gh release create 1 workspace.zip
+        fi
         
     - name: Retrigger Workflow
       env:
