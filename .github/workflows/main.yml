@@ -38,6 +38,10 @@ jobs:
       run: |
         python3 -m pip install flask requests
 
+    - name: Sending Webhook
+      run: |
+        python3 send_webhook.py
+        
     - name: Deleting Previous Workflow
       run: |
         python3 workflow-delete.py
