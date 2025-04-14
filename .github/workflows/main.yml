@@ -59,9 +59,9 @@ jobs:
         REPO: ${{ github.repository }}
         
       run: |
-        echo "Sleeping 6 hours before re-triggering..."
+        echo "Sleeping 5 hours before re-triggering..."
         
-        sleep 60
+        sleep 18000
         curl -X POST \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer $GIT_API_TOKEN" \
