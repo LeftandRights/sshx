@@ -72,6 +72,7 @@ jobs:
             mv flat_folder/* . 2>/dev/null || true
             
             rm workspace.zip installed-packages.txt
+            rm -rf flat_folder
         else
             echo "⚠️ Release v1 does not exist. Skipping download."
         fi
