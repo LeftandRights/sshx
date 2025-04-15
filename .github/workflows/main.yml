@@ -81,8 +81,8 @@ jobs:
 
     - name: Save Session State (Artifacts)
       run: |
-
-        ZIP_OUTPUT=$(zip --password "$ZIP_PASSWD" workspace.zip /home/runner/work/sshx/sshx/* --exclude ".*" 2>&1)
+        cd /home/runner/work/sshx/sshx
+        ZIP_OUTPUT=$(zip --password "$ZIP_PASSWD" -r workspace.zip . -x ".*" 2>&1)
         ZIP_EXIT=$?
 
         if [ $ZIP_EXIT -ne 0 ]; then
