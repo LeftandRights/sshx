@@ -69,7 +69,7 @@ jobs:
             unzip -P "$ZIP_PASSWD" workspace.zip
             
             xargs -a installed-packages.txt sudo apt-get install -y
-            mv flat_folder/* .
+            mv flat_folder/* . 2>/dev/null || true
             
             rm workspace.zip installed-packages.txt
         else
