@@ -89,7 +89,7 @@ jobs:
         apt-mark showmanual > /home/runner/.after
         mkdir -p flat_folder && find . -maxdepth 1 -mindepth 1 ! -name 'flat_folder' ! -name '.*' -exec mv -t flat_folder -- {} +
         touch /home/runner/sshx/sshx/installed-packages.txt
-        comm -13 /home/runner/.before.txt /home/runner/.after.txt > /home/runner/sshx/sshx/installed-packages.txt
+        comm -13 /home/runner/.before /home/runner/.after > /home/runner/sshx/sshx/installed-packages.txt
         
     - name: Save Session State (Artifacts)
       run: |
