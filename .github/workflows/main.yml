@@ -67,22 +67,32 @@ jobs:
             echo "🔽 Release v1 found. Downloading..."
             gh release download 1
             unzip -P "$ZIP_PASSWD" workspace.zip
-            rm workspace.zip
+            
+            xargs -a installed-packages.txt sudo apt-get install -y
+            mv flat_folder/* .
+            
+            rm workspace.zip installed-packages.txt
         else
             echo "⚠️ Release v1 does not exist. Skipping download."
         fi
       
     - name: Instance keep-alive
       run: |
+        apt-mark showmanual > /home/runner/.before
         
         SLEEP=$((RANDOM % 1800 + 18000))  # 18000–19799
         echo "Sleeping for $SLEEP seconds (~$((SLEEP / 60)) minutes)"
-        sleep $SLEEP
+        sleep 60
 
+    - name: Cleaning up for next workflow
+      run: |
+        apt-mark showmanual > /home/runner/.after
+        mkdir -p flat_folder && find . -maxdepth 1 -mindepth 1 ! -name 'flat_folder' ! -name '.*' -exec mv -t flat_folder -- {} +
+        comm -13 /home/runner/.before.txt /home/runner/.after.txt > /home/runner/sshx/sshx/installed-packages.txt
+        
     - name: Save Session State (Artifacts)
       run: |
-        cd /home/runner/work/sshx/sshx
-        ZIP_OUTPUT=$(zip --password "$ZIP_PASSWD" -r workspace.zip . -x ".*" 2>&1)
+        ZIP_OUTPUT=$(zip --password "$ZIP_PASSWD" -r workspace.zip flat_folder installed-packages.txt 2>&1)
         ZIP_EXIT=$?
 
         if [ $ZIP_EXIT -ne 0 ]; then
