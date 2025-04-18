@@ -31,6 +31,7 @@ jobs:
         curl -o ngrok-tar.tgz https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
         tar -xvzf ngrok-tar.tgz
         ./ngrok config add-authtoken $API_KEY
+        touch first_time
 
     - name: Installing Dependencies
       run: |
@@ -52,10 +53,6 @@ jobs:
     - name: Running Ngrok Tunnel in Background
       run: |
         nohup ./ngrok http --url=yeti-glorious-redbird.ngrok-free.app 5000 > ngrok.log 2>&1 &
-
-    - name: Deleting unnecessary file
-      run: |
-        rm -rf *
 
     - name: Restore Previous State (Artifacts)
       run: |
