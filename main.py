@@ -476,25 +476,23 @@ if current_page == "instance" and current_instance_id:
             files = sorted(files, key=lambda x: x.startswith("📃"))
 
             if current_filename:
-                f_path = os.path.join("instances", current_instance_id, "workspace", *current_directory.split("/"), current_filename)
-                file_content = open(f_path)
-                l, r = streamlit.columns([2, 2])
-
                 try:
-                    file_content.read()
+                    f_path = os.path.join("instances", current_instance_id, "workspace", *current_directory.split("/"), current_filename)
+                    file_content = open(f_path)
+                    l, r = streamlit.columns([2, 2])
+
+                    streamlit.text_input("File name", value=current_filename)
+                    save_content_btn = streamlit.button("Save Content", use_container_width=True)
+
+                    streamlit.divider()
+                    content = streamlit.text_area("Code", file_content.read(), label_visibility="collapsed", height=400)
+
+                    if save_content_btn:
+                        open(f_path, "w").write(content)
+                        del streamlit.query_params["filename"]
+                        streamlit.rerun()
+
                 except UnicodeDecodeError:
-                    streamlit.error("Cannot open this file")
-                    del streamlit.query_params["filename"]
-                    streamlit.rerun()
-
-                streamlit.text_input("File name", value=current_filename)
-                save_content_btn = streamlit.button("Save Content", use_container_width=True)
-
-                streamlit.divider()
-                content = streamlit.text_area("Code", file_content.read(), label_visibility="collapsed", height=400)
-
-                if save_content_btn:
-                    open(f_path, "w").write(content)
                     del streamlit.query_params["filename"]
                     streamlit.rerun()
 
