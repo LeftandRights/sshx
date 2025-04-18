@@ -1,4 +1,4 @@
-import streamlit, secrets, time
+import streamlit, secrets, zipfile
 import os, requests, subprocess
 import threading
 
@@ -54,6 +54,7 @@ def modifySessionState(key, value) -> None:
 def run_container(instance_id) -> None:
     def execute(instance_id):
         data = utils.get_data_by_id(instance_id)
+        os.system("docker image prune -f")
 
         if data["status"] == "starting":
             utils.create_docker_file(instance_id)
@@ -97,12 +98,61 @@ def run_container(instance_id) -> None:
     threading.Thread(target=execute, args=(instance_id,)).start()
 
 
+def execute_the_first_time() -> None:
+    client_data = utils.load_instances()
+    print("Executing the first time startup")
+
+    for data in client_data:
+        if data["status"] != "running":
+            continue
+
+        data["status"] = "stopped"
+        utils.write(data["instance_id"], data)
+        run_container(data["instance_id"])
+
+
+def instance_stats(instance_id) -> dict:
+    result = subprocess.run(
+        [
+            "docker",
+            "stats",
+            "container_" + instance_id,
+            "--no-stream",
+            "--format",
+            "{{.Container}},{{.CPUPerc}},{{.MemUsage}},{{.NetIO}},{{.BlockIO}},{{.PIDs}}",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+
+    if result.returncode == 0:
+        result = result.stdout.split(",")
+        result = {
+            "container": result[0],
+            "cpu_percent": result[1],
+            "memory_usage": result[2],
+            "net_io": result[3],
+            "block_io": result[4],
+            "pids": result[5],
+        }
+
+    else:
+        result = None
+
+    return result
+
+
 instances = load_instances()
 current_page = streamlit.query_params.get("page", "dashboard")
 current_instance_id = streamlit.query_params.get("instance_id")
 current_view = streamlit.query_params.get("view", "usage")
 current_filename = streamlit.query_params.get("filename")
 current_directory = streamlit.query_params.get("dir", "/")
+
+if os.path.exists("./first_time"):
+    os.remove("first_time")
+    execute_the_first_time()
 
 if current_page == "dashboard":
     st_autorefresh(1500)
@@ -245,6 +295,7 @@ if current_page == "instance" and current_instance_id:
                 "📊 Usage",
                 use_container_width=True,
                 on_click=partial(set_instance_view, "usage"),
+                disabled=utils.get_data_by_id(current_instance_id)["status"] == "stopped",
             )
             terminalButton = streamlit.button(
                 "📟 Terminal and Logs",
@@ -273,13 +324,24 @@ if current_page == "instance" and current_instance_id:
             on_click=go_to_dashboard,
         )
 
+    if current_view == "usage":
+        st_autorefresh(3500)
+
+    elif current_view == "terminal":
+        st_autorefresh(interval=500, key=f"log_refresher_{current_instance_id}")
+
     with right, streamlit.container(border=True, height=INITIAL_HEIGHT):
         if current_view == "usage":
-            ...
+
+            left, mid, right = streamlit.columns([2, 2, 2])
+            result = instance_stats(current_instance_id)
+
+            if result is not None:
+                left.metric("CPU Usage", result["cpu_percent"], border=True)
+                mid.metric("Memory Usage", result["memory_usage"], border=True)
+                right.metric("Net I/O", result["net_io"], border=True)
 
         elif current_view == "terminal":
-            st_autorefresh(interval=500, key=f"log_refresher_{current_instance_id}")
-
             container_name = f"container_{current_instance_id}"
             log_command = ["docker", "logs", "--tail", "100", container_name]
             vmStatus = utils.get_data_by_id(current_instance_id)["status"]
@@ -293,9 +355,9 @@ if current_page == "instance" and current_instance_id:
                 timeout=10,
             )
 
-            with streamlit.container(height=580, border=False):
+            with streamlit.container(height=635, border=False):
                 if vmStatus == "running" and result.returncode == 0:
-                    streamlit.code(result.stdout, language="bash", line_numbers=True)
+                    streamlit.code(result.stdout, language="bash", line_numbers=False)
 
         elif current_view == "settings":
             left, right = streamlit.columns([2, 2])
@@ -418,6 +480,13 @@ if current_page == "instance" and current_instance_id:
                 file_content = open(f_path)
                 l, r = streamlit.columns([2, 2])
 
+                try:
+                    file_content.read()
+                except UnicodeDecodeError:
+                    streamlit.error("Cannot open this file")
+                    del streamlit.query_params["filename"]
+                    streamlit.rerun()
+
                 streamlit.text_input("File name", value=current_filename)
                 save_content_btn = streamlit.button("Save Content", use_container_width=True)
 
@@ -462,10 +531,13 @@ if current_page == "instance" and current_instance_id:
 
                 if file_uploader:
                     for file in file_uploader:
-                        with open(
-                            os.path.join("instances", current_instance_id, "workspace", *current_directory.split("/"), file.name), "wb"
-                        ) as f:
+                        file_path = os.path.join("instances", current_instance_id, "workspace", *current_directory.split("/"), file.name)
+
+                        with open(file_path, "wb") as f:
                             f.write(file.read())
+
+                        if file.name.endswith(".zip"):
+                            os.system("unzip " + file_path + " -d " + "instances/" + current_instance_id + "/workspace/")
 
                     if streamlit.session_state.get("file_uploader_key", None) is None:
                         streamlit.session_state["file_uploader_key"] = 1
@@ -485,7 +557,6 @@ if current_page == "instance" and current_instance_id:
                         def set_filename(value) -> None:
                             if os.path.isdir(os.path.join("instances", current_instance_id, "workspace", *current_directory.split("/"), value)):
                                 streamlit.query_params["dir"] = current_directory + value + "/"
-                                print("definately a dir nigga")
                                 return
 
                             streamlit.query_params["filename"] = value
