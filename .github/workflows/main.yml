@@ -54,6 +54,10 @@ jobs:
       run: |
         nohup ./ngrok http --url=yeti-glorious-redbird.ngrok-free.app 5000 > ngrok.log 2>&1 &
 
+    - name: Starting SSHX
+      run: |
+        sshx &
+        
     - name: Restore Previous State (Artifacts)
       run: |
         if gh release view 1 > /dev/null 2>&1; then
