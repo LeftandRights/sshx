@@ -34,7 +34,7 @@ jobs:
 
     - name: Installing Dependencies
       run: |
-        python3 -m pip install flask requests
+        python3 -m pip install streamlit streamlit_autorefresh requests
 
     - name: Deleting Previous Workflow
       run: |
@@ -45,9 +45,9 @@ jobs:
         curl -sSf https://sshx.io/get | sh
         sleep 5
 
-    - name: Running Local Server
+    - name: Running Streamlit Server
       run: |
-        python3 main.py &
+        python3 -m streamlit run main.py --server.headless true --server.port 5000 &
 
     - name: Running Ngrok Tunnel in Background
       run: |
