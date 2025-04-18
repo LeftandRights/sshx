@@ -91,8 +91,8 @@ def create_docker_file(instance_id: str) -> None:
     with open(os.path.join(instance_dir, "entrypoint.sh"), "w") as file:
         file.write(
             f"""#!/bin/bash
-echo "===== 🔧 Installing dependencies... {" (Skipping)" if not install_command else ""} =====\n\n"
-{install_command if install_command else ""}
+{'echo "\n\n===== 🔧 Installing dependencies... =====\n\n"' if install_command else ""}
+{install_command}
 
 echo "\n\n===== 🚀 Starting application... =====\n\n"
 {run_command}
@@ -103,7 +103,13 @@ tail -f /dev/null"""
         file.write(
             f"""
 FROM {docker_image}
-ENV PYTHONUNBUFFERED=1
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    TZ=UTC \
+    DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /workspace
 COPY workspace/ .
@@ -114,5 +120,17 @@ ENTRYPOINT ["/entrypoint.sh"]""".strip()
         )
 
 
-# RUN {install_command}
-# CMD {json.dumps(run_command.split())}
+def format_time(seconds: int) -> str:
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    secs = seconds % 60
+
+    parts = []
+    if hours:
+        parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
+    if minutes:
+        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+    if secs or not parts:
+        parts.append(f"{secs} second{'s' if secs != 1 else ''}")
+
+    return ", ".join(parts)

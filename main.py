@@ -1,6 +1,6 @@
-import streamlit, secrets, zipfile
+import streamlit, secrets, time
 import os, requests, subprocess
-import threading
+import threading, shutil
 
 from streamlit_autorefresh import st_autorefresh
 
@@ -59,7 +59,18 @@ def run_container(instance_id) -> None:
         if data["status"] == "starting":
             utils.create_docker_file(instance_id)
             process = subprocess.run(["docker", "build", "-t", instance_id.lower(), f"instances/{instance_id}"])
-            run_command = ["docker", "run", "-d", "--name", f"container_{instance_id}", instance_id.lower()]
+            run_command = [
+                "docker",
+                "run",
+                "-d",
+                f"--memory={data["ram"].replace(" ", "").replace("GB", "g").replace("MB", "m")}",
+                f"--cpus={data["core"]}",
+                "--name",
+                f"container_{instance_id}",
+                instance_id.lower(),
+            ]
+
+            print("Executing " + " ".join(run_command))
 
             if process.returncode == 0:
 
@@ -67,6 +78,7 @@ def run_container(instance_id) -> None:
 
                 data = utils.get_data_by_id(instance_id)
                 data["status"] = "running" if run_proc.returncode == 0 else "stopped"
+                data["uptime"] = repr(time.time())
                 utils.write(instance_id, data)
 
             else:
@@ -81,10 +93,6 @@ def run_container(instance_id) -> None:
             utils.write(instance_id, data)
 
     data = utils.get_data_by_id(instance_id)
-
-    if not data["instance_config"]["docker_image"] or not data["instance_config"]["run_command"]:
-        streamlit.session_state["callback"] = partial(streamlit.error, "Docker Image or Run Command has yet to be set.")
-        return
 
     if data["status"] == "stopped":
         data["status"] = "starting"
@@ -155,7 +163,7 @@ if os.path.exists("./first_time"):
     execute_the_first_time()
 
 if current_page == "dashboard":
-    st_autorefresh(1500)
+    st_autorefresh(1000)
     # streamlit.warning(
     #     "**Notice**: This dashboard runs on GitHub Actions. "
     #     "Every ~5 hours, the system undergoes a brief maintenance where all instances may temporarily shut down. "
@@ -193,15 +201,40 @@ if current_page == "dashboard":
                             instance["status"]
                         ]
 
-                        streamlit.subheader(instance["instance_name"])
-                        streamlit.text(
+                        # streamlit.subheader(instance["instance_name"])
+                        # streamlit.text(f"┏━🖥️ Instance: {instance['instance_name']}")
+                        # streamlit.write(
+                        #     f'<div style="font-size: 22px; font-weight: bold;">🖥️ {instance["instance_name"]}</div>',
+                        #     unsafe_allow_html=True,
+                        # )
+
+                        streamlit.write(
                             f"""
-                            Instance ID: {instance['instance_id']}
-                            Status: {status}
-                            RAM: {instance['ram']} MB | Core: {instance['core']}
-                            Uptime: {instance['uptime']}
-                            """
+                            <div style="text-align: center; font-size: 22px; font-weight: bold; color: #2C8EFF; margin-top: 5px;">
+                                🚀 {instance["instance_name"]}
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
                         )
+
+                        streamlit.divider()
+                        info_block = f"""
+                        🆔 Instance ID : {instance['instance_id']}
+                        🟡 Status      : {status}
+                        🧠 RAM         : {instance['ram']}
+                        ⚙️ Core        : {instance['core']}
+                        ⏱️ Uptime      : {utils.format_time(int(time.time() - float(instance['uptime']))) if status == '🟢 Running' else 'N/A'}
+                        """
+
+                        streamlit.code(info_block, language="json")
+                        # streamlit.text(
+                        #     f"""
+                        #     Instance ID: {instance['instance_id']}
+                        #     Status: {status}
+                        #     RAM: {instance['ram']} MB | Core: {instance['core']}
+                        #     Uptime: {utils.format_time(int(time.time() - float(instance['uptime']))) if status == "🟢 Running" else "N/A"}
+                        #     """
+                        # )
 
                         viewButton = streamlit.button(
                             "View",
@@ -212,8 +245,7 @@ if current_page == "dashboard":
                                 {
                                     "page": "instance",
                                     "instance_id": instance["instance_id"],
-                                    "view": "usage",
-                                    "filename": None,
+                                    "view": "file",
                                 },
                             ),
                         )
@@ -222,13 +254,10 @@ if current_page == "dashboard":
                             "Run" if instance["status"] == "stopped" else "Stop",
                             key=secrets.token_urlsafe(12),
                             use_container_width=True,
-                            disabled=(instance["status"] in ["starting", "stopping"]),
+                            disabled=(instance["status"] in ["starting", "stopping"])
+                            or (not instance["instance_config"]["docker_image"] or not instance["instance_config"]["run_command"]),
                             on_click=partial(run_container, instance["instance_id"]),
                         )
-
-                        if streamlit.session_state.get("callback", None) is not None:
-                            streamlit.session_state["callback"]()
-                            del streamlit.session_state["callback"]
 
     else:
         with left, streamlit.container(border=True, height=INITIAL_HEIGHT):
@@ -375,11 +404,11 @@ if current_page == "instance" and current_instance_id:
                     streamlit.code("python3 -m pip install -r requirements.txt")
                     streamlit.divider()
 
-                    if install_command_input := streamlit.text_input(
+                    install_command_input = streamlit.text_input(
                         "Install Command (Optional)", instance_data["instance_config"]["install_command"]
-                    ):
-                        instance_data["instance_config"]["install_command"] = install_command_input
-                        utils.write(current_instance_id, instance_data)
+                    )
+                    instance_data["instance_config"]["install_command"] = install_command_input
+                    utils.write(current_instance_id, instance_data)
 
             with right:
                 with streamlit.container(border=True):
@@ -506,9 +535,10 @@ if current_page == "instance" and current_instance_id:
                 l, m, r = streamlit.columns([4, 2, 2])
 
                 with l:
-                    file_name_input = streamlit.text_input("Upload File", label_visibility="collapsed")
                     path = os.path.join(ROOT_DIR, *current_directory.split("/"))
-                    button_disabled = (not file_name_input) or file_name_input in [name for name in os.listdir(path)]
+                    file_name_input = streamlit.text_input("Upload File", label_visibility="collapsed")
+                    button_disabled = (not file_name_input) or file_name_input in [name for name in os.listdir(path)] or "/" in file_name_input
+
                 with m:
                     create_dir_btn = streamlit.button(
                         "Create Directory",
@@ -567,87 +597,11 @@ if current_page == "instance" and current_instance_id:
                         )
 
                     with right:
+                        path = os.path.join("instances", current_instance_id, "workspace", *current_directory.split("/"), file[2:])
+
                         streamlit.button(
                             "Delete",
                             key=secrets.token_urlsafe(10),
                             use_container_width=True,
-                            on_click=partial((os.remove if os.path.isfile(file_path) else os.rmdir), file_path),
+                            on_click=partial(shutil.rmtree, path),
                         )
-
-#         elif streamlit.session_state["pageID"].endswith("&settings"):
-#             # streamlit.write("Settings")
-
-#             left, right = streamlit.columns([2, 2])
-
-#             with left:
-#                 with streamlit.container(border=True):
-#                     streamlit.subheader("🧩 Install Command")
-
-#                     streamlit.markdown(
-#                         """This command runs *once* when the instance is first created.
-#                         It's usually used to install dependencies or setup tools.
-#                         **Example:**"""
-#                     )
-
-#                     streamlit.code("python3 -m pip install -r requirements.txt")
-#                     streamlit.divider()
-
-#                     if install_command_input := streamlit.text_input(
-#                         "Install Command (Optional)", utils.get_data_by_id(instance_id)["instance_config"]["install_command"] or ""
-#                     ):
-#                         user_data = utils.get_data_by_id(instance_id)
-#                         user_data["instance_config"]["install_command"] = install_command_input
-#                         utils.write(instance_id, user_data)
-
-#             with right:
-#                 with streamlit.container(border=True):
-#                     streamlit.subheader("🚀 Run Command")
-
-#                     streamlit.markdown(
-#                         """This command keeps your instance running.
-#                             It's the main script or process you want to execute.
-#                             **Example:**  """
-#                     )
-
-#                     streamlit.code("python3 app.py")
-#                     streamlit.divider()
-
-#                     if run_command_input := streamlit.text_input(
-#                         "Run Command", value=utils.get_data_by_id(instance_id)["instance_config"]["run_command"] or ""
-#                     ):
-#                         user_data = utils.get_data_by_id(instance_id)
-#                         user_data["instance_config"]["run_command"] = run_command_input
-#                         utils.write(instance_id, user_data)
-
-#             left2, right2 = streamlit.columns([2, 2], gap="large")
-
-#             with left2:
-#                 streamlit.subheader("Docker Image")
-
-#                 streamlit.markdown(
-#                     "A Docker image is a pre-packaged environment that includes everything your app needs to run—like the operating system, language runtime, and dependencies. When you choose an image, you're picking the foundation for your instance. For example, selecting a Python image gives you an environment with Python already set up. Make sure to pick one that fits the language or tools your app needs."
-#                 )
-
-#             with right2:
-#
-#         elif "view_file" in streamlit.session_state["pageID"]:
-#             file_name = streamlit.session_state["pageID"].split("=")[1]
-#             file_content = open(os.path.join("instances", instance_id, "workspace", file_name))
-#             l, r = streamlit.columns([2, 2])
-
-#             streamlit.text_input("File name", value=file_name)
-#             streamlit.button("Save Content", use_container_width=True)
-
-#             streamlit.divider()
-#             streamlit.text_area("Code", file_content.read(), label_visibility="collapsed", height=400)
-
-#         elif streamlit.session_state["pageID"].endswith("&terminal"):
-#             terminal_logs = subprocess.run(
-#                 ["sudo", "docker", "logs", "--tail", str(100), "instance"],
-#                 stdout=subprocess.PIPE,
-#                 stderr=subprocess.STDOUT,
-#                 text=True,
-#             )
-
-#             with streamlit.container(height=580, border=False):
-#                 a = streamlit.code(terminal_logs.stdout, "bash")
