@@ -9,6 +9,8 @@ env:
   GIT_API_TOKEN: ${{ secrets.GIT_API_TOKEN }}
   DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
   ZIP_PASSWD: ${{ secrets.ZIP_PASSWD }}
+  USERNAME: ${{ secrets.USERNAME }}
+  PASSWORD: ${{ secrets.PASSWORD }}
 
 permissions:
   contents: read
