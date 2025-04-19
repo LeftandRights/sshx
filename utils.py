@@ -29,7 +29,7 @@ def load_instances() -> list[dict]:
     return collections
 
 
-def create_instances(instance_name: str, ram: int, core: int) -> None:
+def create_instances(instance_name: str, ram: int, core: int, username: str, password: int) -> None:
     instance_id = token_urlsafe(22)
     instance_dir = os.path.join(INSTANCE_DIR, instance_id)
 
@@ -50,6 +50,8 @@ def create_instances(instance_name: str, ram: int, core: int) -> None:
                     "install_command": "",
                     "run_command": "",
                 },
+                "instance_user": username,
+                "instance_password": password,
             },
             file,
             indent=2,
