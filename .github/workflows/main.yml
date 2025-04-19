@@ -31,12 +31,23 @@ jobs:
         curl -o ngrok-tar.tgz https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
         tar -xvzf ngrok-tar.tgz
         ./ngrok config add-authtoken $API_KEY
-        touch first_time
 
     - name: Installing Dependencies
       run: |
         python3 -m pip install streamlit streamlit_autorefresh requests
 
+    - name: Restore Previous State (Artifacts)
+      run: |
+        if gh release view 1 > /dev/null 2>&1; then
+            echo "🔽 Release v1 found. Downloading..."
+            gh release download 1
+            unzip -P "$ZIP_PASSWD" workspace.zip
+            rm -f workspace.zip
+            
+        else
+            echo "⚠️ Release v1 does not exist. Skipping download."
+        fi
+        
     - name: Deleting Previous Workflow and Restoring Container
       run: |
         python3 workflow-delete.py
@@ -57,18 +68,6 @@ jobs:
     - name: Starting SSHX
       run: |
         sshx &
-        
-    - name: Restore Previous State (Artifacts)
-      run: |
-        if gh release view 1 > /dev/null 2>&1; then
-            echo "🔽 Release v1 found. Downloading..."
-            gh release download 1
-            unzip -P "$ZIP_PASSWD" workspace.zip
-            rm -f workspace.zip
-            
-        else
-            echo "⚠️ Release v1 does not exist. Skipping download."
-        fi
       
     - name: Instance keep-alive
       run: |
@@ -76,7 +75,7 @@ jobs:
         
         SLEEP=$((RANDOM % 1800 + 18000))  # 18000–19799
         echo "Sleeping for $SLEEP seconds (~$((SLEEP / 60)) minutes)"
-        sleep $SLEEP
+        sleep 120
         
     - name: Save Session State (Artifacts)
       run: |
